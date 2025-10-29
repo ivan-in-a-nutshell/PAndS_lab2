@@ -63,26 +63,30 @@ $$
 #### First, we set the **id** of the team and define the probability $p$ and the generator and parity-check matrices $G$ and $H$
 
 ```{r}
-# your team id number 
-                          ###
-id <- 50                  ### Change to the correct id!
-                          ###
+# your team id number
+###
+id <- 50 ### Change to the correct id!
+###
 set.seed(id)
-p <- id/100
+p <- id / 100
 # matrices G and H
-G <- matrix(c(1, 1, 1, 0, 0, 0, 0,
-		1, 0, 0, 1, 1, 0, 0,
-		0, 1, 0, 1, 0, 1, 0,
-		1, 1, 0, 1, 0, 0, 1), nrow = 4, byrow = TRUE)
-H <- t(matrix(c(1, 0, 1, 0, 1, 0, 1,
-		0, 1, 1, 0, 0, 1, 1,
-		0, 0, 0, 1, 1, 1, 1), nrow = 3, byrow = TRUE))
-# cat("The matrix G is: \n") 
-#G  
-#cat("The matrix H is: \n") 
-#H
-#cat("The product GH must be zero: \n")
-#(G%*%H) %%2
+G <- matrix(c(
+  1, 1, 1, 0, 0, 0, 0,
+  1, 0, 0, 1, 1, 0, 0,
+  0, 1, 0, 1, 0, 1, 0,
+  1, 1, 0, 1, 0, 0, 1
+), nrow = 4, byrow = TRUE)
+H <- t(matrix(c(
+  1, 0, 1, 0, 1, 0, 1,
+  0, 1, 1, 0, 0, 1, 1,
+  0, 0, 0, 1, 1, 1, 1
+), nrow = 3, byrow = TRUE))
+# cat("The matrix G is: \n")
+# G
+# cat("The matrix H is: \n")
+# H
+# cat("The product GH must be zero: \n")
+# (G%*%H) %%2
 ```
 
 #### Next, generate the messages
@@ -91,8 +95,8 @@ H <- t(matrix(c(1, 0, 1, 0, 1, 0, 1,
 # generate N messages
 
 message_generator <- function(N) {
-  matrix(sample(c(0,1), 4*N, replace = TRUE), nrow = N)
-}  
+  matrix(sample(c(0, 1), 4 * N, replace = TRUE), nrow = N)
+}
 messages <- message_generator(100)
 codewords <- (messages %*% G) %% 2
 ```
@@ -101,7 +105,7 @@ codewords <- (messages %*% G) %% 2
 
 ```{r}
 #  errors <- ...
-#  received <-   
+#  received <-
 ```
 
 The next steps include detecting the errors in the received messages, correcting them, and then decoding the obtained messages. After this, you can continue with calculating all the quantities of interest
@@ -131,39 +135,257 @@ Assume that a medical laboratory receives $n$ samples of radioactive element ${{
     -   repeat this $K$ times to get the sample $\mathbf{s}=(s_1,\dots,s_K)$ of sums;
     -   calculate the number of elements of the sample which are less than critical value ($8 \times 10^8$) and calculate the empirical probability; comment whether it is close to the desired level $0.95$
 
+The derivation of the Poisson distribution parameter is as follows: $$
+\mu = N\cdot\lambda = \frac{m}{M}\cdot N_A \cdot \frac{\log 2}{T} = \frac{m \cdot N_A \cdot \log 2}{M \cdot T}
+$$ Atomic mass of `Cesium-137` is $M=136.907089$.
+
 ```{r}
-lambda <- 1  # change this!
-N <- 100     # change this!
+teamId <- 23
+T <- 30.1 * 60 * 60 * 24 * 365 # Half-life period
+m <- teamId * 10^-6 # Mass of the sample
+M <- 136.907089 # For Cesium-137
+lambda <- log(2) / T # Activity
+N <- m / M * 6 * 10^23 #  Number of atoms
 mu <- N * lambda
+print(sprintf("Poisson(%.3e)", mu))
 K <- 1e3
 n <- 5
-sample_means <- colMeans(matrix(rpois(n*K, lambda = mu), nrow=n))
+sample_means <- colMeans(matrix(rpois(n * K, lambda = mu), nrow = n))
 ```
 
 #### Next, calculate the parameters of the standard normal approximation
 
+$$
+\overline{X} = \frac{1}{n}\sum_{i=1}^nX_i
+$$
+
+$$
+E[\overline{X}] = \sum_{i=1}^nE[\frac{X_i}{n}] = n \cdot \frac{E[X_1]}{n} = N\cdot\lambda \\
+Var(\overline{X}) = \sum_{i=1}^nVar(\frac{X_i}{n} = n \cdot \frac{Var(X_1)}{n^2} = \frac{N \cdot \lambda}{n}
+$$ We can approximate the $\overline{X}$ using CLT:
+
+$$
+\overline{X} \approx Y,\quad Y \sim \mathcal{N}(E[\overline{X}], Var(\overline{X})) \\
+Y \sim \mathcal{N}(N \cdot \lambda, \frac{N\cdot \lambda}{n})
+$$
+
 ```{r}
-mu <- 0       # change this!
-sigma <- 1    # change this!
+mu <- N * lambda
+sigma <- sqrt(N * lambda / n)
 ```
 
 #### We can now plot ecdf and cdf
 
 ```{r}
-xlims <- c(mu-3*sigma,mu+3*sigma)
+xlims <- c(mu - 3 * sigma, mu + 3 * sigma)
 Fs <- ecdf(sample_means)
-plot(Fs, 
-     xlim = xlims, 
-     ylim = c(0,1),
-     col = "blue",
-     lwd = 2,
-     main = "Comparison of ecdf and cdf")
+plot(Fs,
+  xlim = xlims,
+  ylim = c(0, 1),
+  col = "blue",
+  lwd = 2,
+  main = "Comparison of ecdf and cdf"
+)
 curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
 ```
 
-**Next, proceed with all the remaining steps**
+The difference is as follows:
 
-**Do not forget to include several sentences summarizing your work and the conclusions you have made!**
+```{r}
+x <- sort(unique(sample_means))
+print(sprintf("max|Fs(x) - Fy(x)|=%f", max(abs(Fs(x) - pnorm(x, mean = mu, sd = sigma)))))
+```
+
+##### Repeating for distinct values of n
+
+```{r}
+mu <- N * lambda
+print(sprintf("Poisson(%.3e)", mu))
+for (n in c(5, 10, 50)) {
+  sigma <- sqrt(N * lambda / n)
+  sample_means <- colMeans(matrix(rpois(n * K, lambda = mu), nrow = n))
+  xlims <- c(mu - 3 * sigma, mu + 3 * sigma)
+  Fs <- ecdf(sample_means)
+  plot(Fs,
+    xlim = xlims,
+    ylim = c(0, 1),
+    col = "blue",
+    lwd = 2,
+    main = sprintf("Comparison of ecdf and cdf for n=%d", n)
+  )
+  curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
+  x <- sort(unique(sample_means))
+  print(sprintf("n=%d: max|Fs(x) - Fy(x)|=%f; mean=%f; sd=%f", n, max(abs(Fs(x) - pnorm(x, mean = mu, sd = sigma))), mean(sample_means), sd(sample_means)))
+}
+```
+
+We can see that difference between normal approximation and empirical value doesn't change except small fluctuations, mean also sits around the mean of our original distribution, however standard deviation is getting smaller with n getting larger. This directly follows from the Law of large numbers.
+
+#### Calculating largest n
+
+Let $S_n = \sum_{i=1}^n X_i$. We can evaluate expected value and variance:
+
+$$
+E[S_n] = \sum_{i=1}^nE[X_i] = nN\lambda \\
+Var(S_n) = \sum_{i=1}^nVar(X_i) = n N\lambda \\
+\theta = 8\cdot10^8
+$$
+
+```{r}
+theta <- 8 * 10^8
+mu <- N * lambda
+n <- 1
+K <- 10^6
+while (TRUE) {
+  sample_sums <- colSums(matrix(rpois(n * K, lambda = mu), nrow = n))
+  prob <- sum(sample_sums < theta) / length(sample_sums)
+  if (prob <= .95) {
+    break
+  }
+  n <- n + 1
+}
+print(sprintf("n≤%d", n))
+```
+
+#### Theoretical bounds
+
+##### Markov's inequality
+
+$$
+P(S_n \geq \theta) \leq \frac{E[S_n]}{\theta} \\
+-P(S_n\geq \theta) \geq -\frac{n N \lambda}{\theta} \\
+P(S_n < \theta) \geq 1 - \frac{n N \lambda}{\theta} > 0.95 \\
+1 - \frac{n N \lambda}{\theta} > 0.95 \\
+\frac{n N  \lambda}{\theta} < 0.05 \\
+\frac{n N\lambda}{\theta} < 0.05 \\
+n < \frac{0.05\cdot\theta}{N\lambda} \\
+n \leq \lceil \frac{0.05\cdot\theta}{N\lambda} - 1 \rceil
+$$
+
+```{r}
+print(sprintf("n≤%d", ceiling((.05 * theta) / (N * lambda) - 1)))
+```
+
+##### Chernoff bound
+
+$$
+P(S_n \geq \theta) \leq \min_{s\in\mathbb{R}} e^{-s \theta}M(s) \\
+M(s) = \prod_{i=1}^nM_{X_i}(s) = \prod_{i=1}^n e^{N\lambda(e^s-1)} = e^{nN\lambda(e^s-1)} \\
+P(S_n \geq \theta) \leq \min_{s\in\mathbb{R}} e^{-s \theta}e^{nN\lambda(e^s-1)} \\
+-P(S_n \geq \theta) \geq -\min_{s\in\mathbb{R}} e^{-s \theta}e^{nN\lambda(e^s-1)} \\
+P(S_n < \theta) \geq 1-\min_{s\in\mathbb{R}} e^{-s \theta}e^{nN\lambda(e^s-1)} \\
+P(S_n < \theta) \geq 1-\min_{s\in\mathbb{R}} \exp(-s \theta+nN\lambda(e^s-1)) \\
+P(S_n < \theta) \geq 1-\min_{s\in\mathbb{R}} \exp(-\theta s+nN\lambda e^s-nN\lambda) \\
+$$
+
+To find $\min_{s\in\mathbb{R}}\big[f(s) = \exp(-\theta s+nN\lambda e^s-nN\lambda)\big]$ we apply calculus:
+
+$$
+f'(s^*) = (-\theta + nN\lambda e^{s^*})\exp(-\theta s^*+nN\lambda e^{s^*}-nN\lambda) = 0 \\
+-\theta + nN\lambda e^{s^*} = 0 \\
+nN\lambda e^{s^*} = \theta \\
+e^{s^*} = \frac{\theta}{nN\lambda} \\
+s^* = \log\frac{\theta}{nN\lambda} \\
+$$ But since $s > 0$ we need to constrain $s^* > 0$:
+
+$$
+\log\frac{\theta}{nN\lambda} > 0 \\
+\frac{\theta}{nN\lambda} > 1 \\
+nN\lambda < \theta \\
+n < \frac{\theta}{N\lambda} \\
+$$
+
+It means that we have to work in the range $s\in\Big(0, \frac{\theta}{N\lambda}\Big)$
+
+From $s^* = \arg \min f(s)$, we get that:
+
+$$
+\min_{s\in\mathbb{R}}f(s) = f(s^*) = f(\log\frac{\theta}{nN\lambda}) = \exp(-\theta \log\frac{\theta}{nN\lambda}+nN\lambda \frac{\theta}{nN\lambda}-nN\lambda) =\\
+= \exp(-\theta \log\frac{\theta}{nN\lambda}+\theta-nN\lambda)
+$$
+
+So Chernoff bound gets us following:
+
+$$
+P(S_n < \theta) \geq 1-\exp(-\theta \log\frac{\theta}{nN\lambda}+\theta-nN\lambda) > 0.95 \\
+1-\exp(-\theta \log\frac{\theta}{nN\lambda}+\theta-nN\lambda) > 0.95 \\
+\exp(-\theta \log\frac{\theta}{nN\lambda}+\theta-nN\lambda) < 0.05 \\
+-\theta \log\frac{\theta}{nN\lambda}+\theta-nN\lambda < \log0.05 \\
+-\theta (\log \theta - \log{nN\lambda})+\theta-nN\lambda < \log0.05 \\
+-\theta\log \theta + \theta\log{nN\lambda}+\theta-nN\lambda < \log0.05 \\
+\theta\log{nN\lambda}-nN\lambda < \log0.05+\theta\log \theta-\theta
+$$
+
+This inequality cannot be solved algebraically, so we use binary search algorithm to find largest $n$ that satisfies the inequality.
+
+Inequality definition:
+
+```{r}
+rhs <- log(0.05) + theta * log(theta) - theta
+lhs <- function(n) {
+  t <- n * N * lambda
+  return(theta * log(t) - t)
+}
+```
+
+Search algorithm:
+
+```{r}
+left <- 1
+right <- theta / (N * lambda)
+while (left <= right) {
+  mid <- ceiling((left + right) / 2)
+  lhs_cur <- lhs(mid)
+  if (lhs_cur < rhs) {
+    n <- mid
+    left <- mid + 1
+  } else {
+    right <- mid - 1
+  }
+}
+
+print(sprintf("n≤%d", n))
+```
+
+##### Normal approximation
+
+Using CLT we can state that (recall $E[S_n]$ and $Var(S_n)$):
+
+$$
+S_n \approx \sqrt{nN\lambda}Z + nN\lambda \\
+Z \sim \mathcal{N}(0, 1)
+$$
+
+Using this approximation we can try to approximate the probability:
+
+$$
+P(S_n < \theta) \approx P( \sqrt{nN\lambda}Z + nN\lambda < \theta) \\
+P(S_n < \theta) \approx P( Z < \frac{\theta-nN\lambda}{\sqrt{nN\lambda}}) \\
+P(S_n < \theta) \approx \Phi(\frac{\theta-nN\lambda}{\sqrt{nN\lambda}})\\
+P(S_n < \theta) > 0.95 \\
+\Phi(\frac{\theta-nN\lambda}{\sqrt{nN\lambda}}) > 0.95\\
+\frac{\theta-nN\lambda}{\sqrt{nN\lambda}} > \Phi^{-1}(0.95) \\
+\frac{\theta-nN\lambda}{\sqrt{nN\lambda}} > z_{0.95} \\
+\theta-nN\lambda > z_{0.95}\sqrt{nN\lambda} \\
+u := \sqrt{nN\lambda} \\
+\theta - u^2 > z_{0.95}u \\
+u^2 + z_{0.95}u - \theta < 0 \\
+u \in \Big(\frac{-z_{0.95} - \sqrt{(z_{0.95})^2 + 4\theta}}{2}, \frac{-z_{0.95} + \sqrt{(z_{0.95})^2 + 4\theta}}{2}\Big) \\
+\sqrt{nN\lambda} \in \Big(\frac{-z_{0.95} - \sqrt{(z_{0.95})^2 + 4\theta}}{2}, \frac{-z_{0.95} + \sqrt{(z_{0.95})^2 + 4\theta}}{2}\Big) \\
+nN\lambda \in \Big[0, (\frac{-z_{0.95} + \sqrt{(z_{0.95})^2 + 4\theta}}{2})^2\Big) \\
+n \in \Big[0, (\frac{(-z_{0.95} + \sqrt{(z_{0.95})^2 + 4\theta})^2}{4N\lambda}) \Big) \\
+n \leq \lceil (\frac{(-z_{0.95} + \sqrt{(z_{0.95})^2 + 4\theta})^2}{4N\lambda})  - 1 \rceil
+$$
+
+```{r}
+z95 <- qnorm(.95)
+n <- ceiling((-z95 + sqrt(z95^2 + 4 * theta))^2 / (4 * N * lambda) - 1)
+print(sprintf("n≤%d", n))
+```
+
+##### Results
+
+We can see that the Markov's inequality is the most conservative one geaving the result of $n\leq0$ (basically $n=0$). While the Chernoff bound is the most precise and coincides with the empirical estimate $n \leq 11$. The normal approximation through CLT works here well giving the result of $n \leq 10$ which is very close to the real bound, yet is easier to solve than the Chernoff bound, which required numerical solution for the inequality.
 
 ------------------------------------------------------------------------
 
@@ -189,29 +411,30 @@ curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
 #### First, generate samples an sample means:
 
 ```{r}
-nu1 <- 1  # change this!
+nu1 <- 1 # change this!
 K <- 1e3
 n <- 5
-sample_means <- colMeans(matrix(rexp(n*K, rate = nu1), nrow=n))
+sample_means <- colMeans(matrix(rexp(n * K, rate = nu1), nrow = n))
 ```
 
 #### Next, calculate the parameters of the standard normal approximation
 
 ```{r}
-mu <- 0       # change this!
-sigma <- 1    # change this!
+mu <- 0 # change this!
+sigma <- 1 # change this!
 ```
 
 #### We can now plot ecdf and cdf
 
 ```{r}
-xlims <- c(mu-3*sigma,mu+3*sigma)
+xlims <- c(mu - 3 * sigma, mu + 3 * sigma)
 Fs <- ecdf(sample_means)
-plot(Fs, 
-     xlim = xlims, 
-     col = "blue",
-     lwd = 2,
-     main = "Comparison of ecdf and cdf")
+plot(Fs,
+  xlim = xlims,
+  col = "blue",
+  lwd = 2,
+  main = "Comparison of ecdf and cdf"
+)
 curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
 ```
 
@@ -232,17 +455,17 @@ curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
     2.  Let $X \sim \mathscr{N}(\mu,\sigma^2)$ with $\mu = teamidnumber$ and $\sigma^{2} = 2\times teamidnumber+7$. Simulate realizations $x_1,x_2,\dots,x_{100}$ of $X$ and $y_1,y_2,\dots,y_{100}$ of $Y := \frac{1}{X}$ to calculate the values of $\frac{1}{\overline{\textbf{X}}}$ and $\overline{\textbf{Y}}$. Comment on the received results;
 
         ```{r}
-        mu <- 0 #change this!
-        sigma <- 1 #change this
-        N <- 100
+mu <- 0 # change this!
+sigma <- 1 # change this
+N <- 100
 
-        # YOUR CODE HERE
+# YOUR CODE HERE
         ```
 
     3.  Let $X$ and $Y$ be exponentially distributed r.v.'s with parameter $\lambda = 2$. Set $Z := \log{X} + 5$. Plot the Quantile-Quantile plot and scatterplot of $X$ and $Y$. Plot the Quantile-Quantile plot and scatterplot of $X$ and $Z$. Explain the results. Comment on the difference of relations between the pairs of random variables. Which pair of r.v.'s is dependent and which one is similar?
 
         ```{r}
-        # YOUR CODE HERE
+# YOUR CODE HERE
         ```
 
     ------------------------------------------------------------------------
@@ -264,13 +487,13 @@ curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
     2.  What are the expected value and variance of X? Simulate realizations $x_1,x_2,\dots,x_{100}$ of $X$ to calculate the values of sample mean $\overline{\mathbf{X}}$ and sample variance $s^2 = \frac{\sum_{i=1}^{n}{(x_i - \overline{x})^{2}}}{n-1}$. Comment on the results;
 
         ```{r}
-        # YOUR CODE HERE
+# YOUR CODE HERE
         ```
 
     3.  What are the expected value and variance of Y? Simulate realizations $y_1,y_2,\dots,y_{100}$ of $Y$ to calculate the values of sample mean $\overline{\mathbf{Y}}$ and sample variance $s^2 = \frac{\sum_{i=1}^{n}{(y_i - \overline{y})^{2}}}{n-1}$. Comment on the results;
 
         ```{r}
-        # YOUR CODE HERE
+# YOUR CODE HERE
         ```
 
 **Do not forget to include several sentences summarizing your work and the conclusions you have made!**
