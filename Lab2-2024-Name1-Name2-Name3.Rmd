@@ -181,45 +181,190 @@ curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
     -   consider cases $n = 5$, $n = 10$, $n=50$ and comment on the results.
 2.  The place can be considered safe when the number of clicks in one minute does not exceed $100$. It is known that the parameter $\nu$ of the resulting exponential distribution is proportional to the number $N$ of the radioactive samples, i.e., $\nu = \nu_1*N$, where $\nu_1$ is the parameter for one sample. Determine the maximal number of radioactive samples that can be stored in that place so that, with probability $0.95$, the place is identified as safe. To do this,
     -   express the event of interest in terms of the \textbf{r.v.} $S:= X_1 + \cdots + X_{100}$;\
+
     -   obtain the theoretical bounds on $N$ using the Markov inequality, Chernoff bound and Central Limit Theorem and compare the results;\
+
     -   with the predicted $N$ and thus $\nu$, simulate the realization $x_1,x_2,\dots,x_{100}$ of the $X_i$ and of the sum $S = X_1 + \cdots + X_{100}$;\
+
     -   repeat this $K$ times to get the sample $\mathbf{s}=(s_1,\dots,s_K)$ of total times until the $100^{\mathrm{th}}$ click;\
+
     -   estimate the probability that the location is identified as safe and compare to the desired level $0.95$
+
+        #### Part 1
+
+For $X_i​∼Exp(\nu_1​)$:
+
+-   Mean: $E[X_i​]=\frac{1}{\nu_1}$
+
+-   Variance: $Var(X_i​)=\frac{1}{\nu_1^2}$
+
+Then by CLT $\bar{X_n}$ approaches $$ N(\mu, \sigma_n^2) $$:
+
+where
+
+$$
+\mu = E(\bar{X}_n) = E(X_i) = \frac{1}{\nu_1}
+$$ $$
+\sigma_n^2 = Var(\bar{X}_n) = \frac{Var(X_i)}{n} = \frac{1}{n\nu_1^2}
+$$
+
+Therefore for $$ \nu_1 = 33 $$
+
+$$
+N(\frac{1}{33}, \frac{1}{n33^2})
+$$
 
 #### First, generate samples an sample means:
 
 ```{r}
-nu1 <- 1  # change this!
+set.seed(23)
+```
+
+```{r}
+nu1 <- 23 + 10
 K <- 1e3
-n <- 5
-sample_means <- colMeans(matrix(rexp(n*K, rate = nu1), nrow=n))
-```
+n_5 <- 5
+sample_means <- colMeans(matrix(rexp(n_5*K, rate = nu1), nrow=n_5))
 
-#### Next, calculate the parameters of the standard normal approximation
+mu <- 1 / nu1
+sigma <- 1 / (nu1 * sqrt(n_5))
 
-```{r}
-mu <- 0       # change this!
-sigma <- 1    # change this!
-```
-
-#### We can now plot ecdf and cdf
-
-```{r}
-xlims <- c(mu-3*sigma,mu+3*sigma)
+xlims <- c(mu-4*sigma,mu+4*sigma)
 Fs <- ecdf(sample_means)
+
 plot(Fs, 
      xlim = xlims, 
      col = "blue",
      lwd = 2,
      main = "Comparison of ecdf and cdf")
 curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
+
+x <- seq(xlims[1], xlims[2], length.out = 1000)
+max(abs(Fs(x)-pnorm(x, mean = mu, sd = sigma)))
 ```
 
-**Next, proceed with all the remaining steps**
+```{r}
+n_10 <- 10
+sample_means <- colMeans(matrix(rexp(n_10*K, rate = nu1), nrow=n_10))
 
-**Do not forget to include several sentences summarizing your work and the conclusions you have made!**
+mu <- 1 / nu1
+sigma <- 1 / (nu1 * sqrt(n_10))
 
-------------------------------------------------------------------------
+xlims <- c(mu-4*sigma,mu+4*sigma)
+Fs <- ecdf(sample_means)
+
+plot(Fs, 
+     xlim = xlims, 
+     col = "blue",
+     lwd = 2,
+     main = "Comparison of ecdf and cdf")
+curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
+
+x <- seq(xlims[1], xlims[2], length.out = 1000)
+max(abs(Fs(x)-pnorm(x, mean = mu, sd = sigma)))
+```
+
+```{r}
+n_50 <- 50
+sample_means <- colMeans(matrix(rexp(n_50*K, rate = nu1), nrow=n_50))
+
+mu <- 1 / nu1
+sigma <- 1 / (nu1 * sqrt(n_50))
+
+xlims <- c(mu-4*sigma,mu+4*sigma)
+Fs <- ecdf(sample_means)
+
+plot(Fs, 
+     xlim = xlims, 
+     col = "blue",
+     lwd = 2,
+     main = "Comparison of ecdf and cdf")
+curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
+
+x <- seq(xlims[1], xlims[2], length.out = 1000)
+max(abs(Fs(x)-pnorm(x, mean = mu, sd = sigma)))
+```
+
+As n increases, the maximal difference between the empirical CDF (blue line) and the theoretical normal CDF (red line) decreases.
+
+This empirically demonstrates the CLT: as the sample size n increases, the distribution of the sample means converges to the predicted normal distribution.
+
+#### Part 2
+
+Let $$C(t) - \#\text{clicks in t minutes}$$ $$
+C(t) \sim P(\lambda t);\nu = \nu1N=33N;\lambda=\nu
+$$ $$
+P(C(1) \le 100) \ge 0.95
+$$ $$
+\text{Let } S_{100} = X_1 + X_2 + ...+X_{100}(\text{Where } X_i \sim E(\nu))
+$$ $$
+C(1) < 100 \Rightarrow S_{100} > 1 \\ C(1) \le 100 \Rightarrow S_{101} > 1 \approx S_{100} > 1
+$$ $$
+P(S_{100} > 1) \ge 0.95 \Rightarrow P(S_{100} \le 1) \le 0.05
+$$ $$
+S_{100} \sim \Gamma(100, \nu) \\ \mu_S = E(S_{100}) = \frac{100}{\nu} \\ \sigma_{S}^2=\frac{100}{\nu^2}
+$$
+
+$$
+\text{Markov: Does not really make sense, as we need approximatioon for left tail, and not right tail} \\ P(S_{100} > 1) \le \frac{100}{\nu}>1
+$$
+
+$$
+\text{CLT:} \\
+S_{100} \sim N(\mu_S, \sigma_S^2) \text{ by CLT} \\
+S_{100} \sim N(\frac{100}{\nu},\frac{100}{\nu^2}) \\
+P(S_{100} \le 1) \le 0.05 \\
+P(Z \le \frac{1-\nu_S}{\sigma_S}) \le 0.05 \text{ (}P(Z \le -1.645) \approx 0.05 \text{ from table}\text{)} \\
+\frac{1-\nu_S}{\sigma_S} \le -1.645 \\
+\frac{1-\frac{100}{\nu}}{\frac{10}{\nu}} \le -1.645 \\
+... \\
+\nu \le 83.55 \\
+33N \le 83.55 \\
+N \le 2.53 \Rightarrow N_{max}=2
+$$
+
+$$
+\text{Chernoff:} \\
+P(S_{100} \le 1) \le e^{-t}M_{S_{100}}(t) \\
+M_{S_{100}}(t) = E(e^{tX_i}) = \frac{\nu}{\nu - t} (t < \nu) \\
+M_{S_{100}}(t) = (M_{X_i}(t))^{100} = \left( \frac{\nu}{\nu - t} \right)^{100} \\
+P(S_{100} \le 1) \le e^{-t} \left( \frac{\nu}{\nu - t} \right)^{100} (t<0) \\
+\text{Let: } f(t) = -t + 100(\ln\nu - \ln(\nu - t)) \\
+f'(t) = -1 + \frac{100}{\nu - t} = 0 \Rightarrow \nu < 100 \\
+33N < 100 \Rightarrow N \le 3 \\
+P(S_{100} \le 1) \le e^{100 - \nu} \left( \frac{\nu}{100} \right)^{100} \\
+\text{For N = 2: } \\
+P(S_{100} \le 1) \le e^{34} 0.66^{100} \\
+\ln(P(S_{100} \le 1)) \approx 34 + 100\ln0.66 \\
+\ln(P(S_{100} \le 1)) \approx -7.55 \\
+P(S_{100} \le 1) \le e^{-7.55} \\
+$$
+
+$$
+P(S_{100} \le 1) \le 0.0005 \text{ Therefore N=2 is good} \\
+\text{N=3: } \\
+P(S_{100} \le 1) \le e^1 0.99^{100} \\
+P(S_{100} \le 1) \approx e^1 e^{-1} \Rightarrow P(S_{100} \le 1) \approx 1 \ge 0.05 \text{ So n=3 is bad} \\
+\Rightarrow N_{max} = 2
+$$
+
+```{r}
+set.seed(99)
+N <- 2
+nu <- nu1 * N
+n_clicks <- 100
+
+sample_sums <- colSums(matrix(rexp(n_clicks * K, nu), nrow = n_clicks))
+
+prob_safe <- mean(sample_sums > 1)
+
+print(paste("Predicted N_max (from CLT and Chernoff):", N))
+print(paste("Resulting parameter nu:", nu))
+print(paste("Simulated probability of being safe (P(S_100 > 1)):", prob_safe))
+print(paste("Desired probability level:", 0.95))
+```
+
+Both CLT and Chernoff gave N=2, which in our case gave probability 1. We can check that by setting N to 3 the probability plummets to \~0.5
 
 ### Task 4.
 
@@ -263,17 +408,44 @@ curve(pnorm(x, mean = mu, sd = sigma), col = "red", lwd = 2, add = TRUE)
 
     2.  What are the expected value and variance of X? Simulate realizations $x_1,x_2,\dots,x_{100}$ of $X$ to calculate the values of sample mean $\overline{\mathbf{X}}$ and sample variance $s^2 = \frac{\sum_{i=1}^{n}{(x_i - \overline{x})^{2}}}{n-1}$. Comment on the results;
 
-        ```{r}
-        # YOUR CODE HERE
-        ```
+```{r}
+set.seed(23)
+n_sims <- 100
+n_trials <- 3
+p_success <- 0.5
 
-    3.  What are the expected value and variance of Y? Simulate realizations $y_1,y_2,\dots,y_{100}$ of $Y$ to calculate the values of sample mean $\overline{\mathbf{Y}}$ and sample variance $s^2 = \frac{\sum_{i=1}^{n}{(y_i - \overline{y})^{2}}}{n-1}$. Comment on the results;
+x_samples <- rbinom(n_sims, n_trials, p_success)
+x_mean <- mean(x_samples)
+x_var <- var(x_samples)
 
-        ```{r}
-        # YOUR CODE HERE
-        ```
+print(paste("Theoretical E[X]:", 1.5))
+print(paste("Sample Mean of X:", x_mean))
+print("---")
+print(paste("Theoretical Var(X):", 0.75))
+print(paste("Sample Variance of X:", x_var))
+```
 
-**Do not forget to include several sentences summarizing your work and the conclusions you have made!**
+3.  What are the expected value and variance of Y? Simulate realizations $y_1,y_2,\dots,y_{100}$ of $Y$ to calculate the values of sample mean $\overline{\mathbf{Y}}$ and sample variance $s^2 = \frac{\sum_{i=1}^{n}{(y_i - \overline{y})^{2}}}{n-1}$. Comment on the results;
+
+```{r}
+n_sims <- 100
+n_trials <- 3
+p_success <- 0.5
+
+y_samples <- 0.5 * x_samples - 1
+y_mean <- mean(y_samples)
+y_var <- var(y_samples)
+
+print(paste("Theoretical E[X]:", -0.25))
+print(paste("Sample Mean of X:", y_mean))
+print("---")
+print(paste("Theoretical Var(X):", 0.1825))
+print(paste("Sample Variance of X:", y_var))
+```
+
+All simulated values are very close to the theoretically calculated ones.
+
+The negative expected value E[Y]=−0.25 means that this game is unfavorable for our friend. On average, he will lose 25 cents each round.
 
 ------------------------------------------------------------------------
 
