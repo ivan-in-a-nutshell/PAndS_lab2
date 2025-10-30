@@ -63,13 +63,11 @@ $$
 #### First, we set the **id** of the team and define the probability $p$ and the generator and parity-check matrices $G$ and $H$
 
 ```{r}
-# your team id number
-###
-id <- 50 ### Change to the correct id!
-###
-set.seed(id)
-p <- id / 100
-# matrices G and H
+teamId <- 23
+
+set.seed(teamId)
+p <- teamId / 100
+
 G <- matrix(c(
   1, 1, 1, 0, 0, 0, 0,
   1, 0, 0, 1, 1, 0, 0,
@@ -86,7 +84,7 @@ H <- t(matrix(c(
 # cat("The matrix H is: \n")
 # H
 # cat("The product GH must be zero: \n")
-# (G%*%H) %%2
+# (G%*%H) %% 2
 ```
 
 #### Next, generate the messages
@@ -97,22 +95,136 @@ H <- t(matrix(c(
 message_generator <- function(N) {
   matrix(sample(c(0, 1), 4 * N, replace = TRUE), nrow = N)
 }
-messages <- message_generator(100)
+N <- 1000000
+messages <- message_generator(N)
 codewords <- (messages %*% G) %% 2
 ```
 
 #### Generate random errors; do not forget that they occur with probability $p$! Next, generate the received messages
 
 ```{r}
-#  errors <- ...
-#  received <-
+errors <- matrix(rbinom(N * 7, size = 1, prob = p), nrow = N, ncol = 7)
+received <- (codewords + errors) %% 2
 ```
 
-The next steps include detecting the errors in the received messages, correcting them, and then decoding the obtained messages. After this, you can continue with calculating all the quantities of interest
+#### The next steps include detecting the errors in the received messages, correcting them, and then decoding the obtained messages. After this, you can continue with calculating all the quantities of interest
 
-**Do not forget to include several sentences summarizing your work and the conclusions you have made!**
+```{r}
+syndromes <- (received %*% H) %% 2
 
-------------------------------------------------------------------------
+syndrome_vals <- syndromes[,1] + 2*syndromes[,2] + 4*syndromes[,3]
+
+corrected <- received
+for (i in 1:N) {
+  pos <- syndrome_vals[i]
+  if (pos != 0) {
+    corrected[i, pos] <- (corrected[i, pos] + 1) %% 2
+  }
+}
+
+msg_idx <- c(3, 5, 6, 7)
+decoded_messages <- corrected[, msg_idx, drop = FALSE]
+
+decoded_ok <- apply(decoded_messages == messages, 1, all)
+
+num_errors <- rowSums(errors)
+
+cat("Total simulated messages:", N, "\n")
+print(table(num_errors))
+cat("\nTable: num_errors vs decoded_ok (counts)\n")
+print(table(num_errors, decoded_ok))
+
+ok_le1 <- if (any(num_errors <= 1)) all(decoded_ok[num_errors <= 1]) else TRUE
+ok_gt1 <- if (any(num_errors > 1)) all(!decoded_ok[num_errors > 1]) else TRUE
+
+cat("\nAll decoded correctly when num_errors <= 1 ?", ok_le1, "\n")
+cat("All decoded incorrectly when num_errors > 1 ?", ok_gt1, "\n")
+
+viol_le1 <- which((num_errors <= 1) & (!decoded_ok))
+viol_gt1 <- which((num_errors > 1) & (decoded_ok))
+
+cat("\nViolations: cases with <= 1 error but decoded incorrectly:", length(viol_le1), "\n")
+if (length(viol_le1) > 0) print(head(viol_le1))
+
+cat("Violations: cases with > 1 error but decoded correctly:", length(viol_gt1), "\n")
+if (length(viol_gt1) > 0) print(head(viol_gt1))
+```
+
+Lets calculate theoretical probability $p^*$ of correct transmission (correct transmission means that transmitted message after correction is same as original). It is true if there are exactly 0 or 1 error in message during transmission of message (7 bits). Let r.v. $X$ denote number or errors in message, then:
+
+$X \sim B(7, p)$
+
+$P(X <= 1) = P(X = 0) + P(X = 1) = {7 \choose 0} \cdot p^{0} \cdot (1 - p)^{7} + {7 \choose 1} \cdot p^{1} \cdot (1 - p)^{6} = (1 - p)^{7} + 7 \cdot p \cdot (1 - p)^{6}$
+
+Lets compare it with our estimate, which is just mean of realizations of indicator r.v. (which equals 1 if transmission is correct, 0 otherwise):
+
+```{r}
+theoretical_p <- (1 - p) ^ 7 + 7 * p * (1 - p) ^ 6
+cat("Theoretical probability of correct transmission:", theoretical_p, "\n")
+
+estimate_p <- mean(decoded_ok)
+cat("Estimate of this probability:", estimate_p, "\n")
+```
+
+According to the law of large numbers, estimated probability $\hat{p}$ converges to theoretical probability $p^*$ when N is large enough.
+
+Now lets calculate standard error (variance of Bernoulli r.v. with parameter $p$ is $p(1-p)$, standard error is square root of variance divided by square root of N):
+
+```{r}
+estimate_se <- sqrt(estimate_p * (1 - estimate_p) / N)
+cat(sprintf("Estimate standard error = %.6f\n", estimate_se))
+```
+
+Now, according to CLT, distribution of N i.i.d. Bernoulli r.v. (with known mean and variance, denote variable with this joint distribution $Y$ of distributions $X$) converges to $N(\mu, \sigma^2)$. And we can compute confidence interval bounds from formula ($Y$ must be normalized firstly): $P(z_v \le \frac{XN - \mu N}{\sigma \sqrt N}  \le z_v) = 0.95$, or $(\mu - z_v \cdot SE \le Y \le \mu + z_v \cdot SE) = 0.95$. We are discarding half of $0.05$ from both tails of distribution, so $z_v$ is value of z-function with argument $1 - \frac{0.05}{2}$:
+
+```{r}
+ci_probability = 0.95
+discard_from_both_tails <- (1 - ci_probability) / 2
+z_v <- qnorm(1 - discard_from_both_tails)
+epsilon = z_v * estimate_se
+ci_lower <- estimate_p - epsilon
+ci_upper <- estimate_p + epsilon
+ci_lower <- max(0, ci_lower)
+ci_upper <- min(1, ci_upper)
+
+cat(sprintf("z_v: %.6f\n", z_v))
+cat(sprintf("95%% confidence interval epsilon: %.6f\n", epsilon))
+cat(sprintf("95%% confidence interval: (%.6f, %.6f)\n", ci_lower, ci_upper))
+```
+
+Now lets calculate what choice of $N$ guarantees that $\varepsilon \le K; K = 0.03$. If $\varepsilon \le K$, then:
+
+$SE * z_v \le K$
+
+Or:
+
+$\sqrt{\frac{\hat{p}(1 - \hat{p})}{N}} * z_v \le K$
+
+$\frac{\hat{p}(1 - \hat{p})}{N} \le (\frac{K}{z_v})^2$
+
+${N} \ge \frac{\hat{p}(1 - \hat{p})z_v^2}{K^2}$
+
+```{r}
+K = 0.03
+min_n = ceiling(estimate_p * (1 - estimate_p) * z_v ^ 2 / K ^ 2)
+cat(sprintf("Minimum N if epsilon <= %.2f: %.0f\n", K, min_n))
+```
+
+Now lets draw histogram of errors per transmitted message (we found it earlier, but for transformed 7-bit messages, not for only for 4 data bits, so now lets find for data bits):
+
+```{r}
+errors_per_decoded <- rowSums(messages != decoded_messages)
+decoded_per_errors <- table(errors_per_decoded)
+
+barplot(decoded_per_errors,
+        main="Histogram of number of errors in decoded 4-digit messages", xlab="Number of errors", ylab="Number of messages", col="skyblue")
+```
+
+If our messages would be without corrections, then our distribution would be just $B(4, p)$ by definition - we make error in each bit independently with probability $p$, and parity bits does not matter for us. But after correction, if there was only one error or no errors in all 7 bits, it becomes zero (corrected). But if there was for example two or more errors, we cannot guarantee that it will correct any stable number of incorrect bits. It doesn't correspond to any well-known distribution. There is even a probability that with more than two errors it will not be able to identify that there is any error: error can change both data and parity bits.
+
+#### Results
+
+In this task, we firstly simulated encoding and decoding messages to 7,4-hamming code and correcting single errors in messages, calculated estimated and theoretical probability of event that decoded and corrected message would match original, also calculated standard error of indicator r.v. that represents this event. Then we analyzed bounds in which will be estimated probability of decoding message correctly for some set of N messages (estimated probability will be in this bounds with certain probability that we took into consideration while calculations), used CLT, estimated mean and standard deviation, standard error for this. Also we showed that distribution of number of decoded messages per number of errors in message does not represent any well-known distribution.
 
 ### Task 2.
 
@@ -596,23 +708,54 @@ Both CLT and Chernoff gave N=2, which in our case gave probability 1. We can che
 
     1.  Suppose we have a random variable $X$. Explain why $\mathbb{E}(\frac{1}{X}) \neq \frac{1}{\mathbb{E(X)}}$;
 
+    Because in general, for nonlinear function $f$: $E(f(x)) \neq f(E(X))$, and function f(X) = 1/X is not linear.
+
     2.  Let $X \sim \mathscr{N}(\mu,\sigma^2)$ with $\mu = teamidnumber$ and $\sigma^{2} = 2\times teamidnumber+7$. Simulate realizations $x_1,x_2,\dots,x_{100}$ of $X$ and $y_1,y_2,\dots,y_{100}$ of $Y := \frac{1}{X}$ to calculate the values of $\frac{1}{\overline{\textbf{X}}}$ and $\overline{\textbf{Y}}$. Comment on the received results;
 
-        ```{r}
-mu <- 0 # change this!
-sigma <- 1 # change this
-N <- 100
+    ```{r}
+    teamId <- 23
 
-# YOUR CODE HERE
-        ```
+    set.seed(23)
+
+    mu <- teamId
+    sigma <- sqrt(2 * teamId + 7)
+    N <- 100
+
+    X <- rnorm(N, mean = mu, sd = sigma)
+    Y <- 1 / X
+
+    cat("1/E(X) = ", 1 / mean(X), "\n")
+    cat("E(Y) = E(1/X) = ", mean(Y), "\n")
+    ```
+
+    These values are not equal because $\mathbb{E}(\frac{1}{X}) \neq \frac{1}{\mathbb{E(X)}}$.
 
     3.  Let $X$ and $Y$ be exponentially distributed r.v.'s with parameter $\lambda = 2$. Set $Z := \log{X} + 5$. Plot the Quantile-Quantile plot and scatterplot of $X$ and $Y$. Plot the Quantile-Quantile plot and scatterplot of $X$ and $Z$. Explain the results. Comment on the difference of relations between the pairs of random variables. Which pair of r.v.'s is dependent and which one is similar?
 
-        ```{r}
-# YOUR CODE HERE
-        ```
+    ```{r}
+    lambda <- 2
+    N <- 100
 
+    X <- rexp(N, rate = lambda)
+    Y <- rexp(N, rate = lambda)
+    Z <- log(X) + 5
+
+    par(mfrow = c(1,2))
+    plot(X, Y, main="Scatterplot X vs Y")
+    qqplot(X, Y, main="QQ-plot X vs Y"); abline(0, 1, col="red")
+
+    par(mfrow = c(1, 2))
+    plot(X, Z, main="Scatterplot X vs Z")
+    qqplot(X, Z, main="QQ-plot X vs Z"); abline(0, 1, col="red")
+    ```
+
+    Scatterplot of X and Y is pretty random, that means that there is no dependency between X and Y. QQ-plot of X and Y is aligned near graph y = x, it means that distributions X and Y are similar (because quantiles are similar).
+
+    On the other hand, on scatterplot of X and Z we can see shape of function (precisely z = log(x) + 5), so distributions are dependent on each other. Same for QQ-plot, we can see shape of the same function z = log(x) + 5, which is far from z = x, it shows that distributions of X and Z are different.
+
+    ```         
     ------------------------------------------------------------------------
+    ```
 
 2.  You toss a fair coin three times and a random variable $X$ records how many times the coin shows Heads. You convince your friend that they should play a game with the following payoff: every round (equivalent to three coin tosses) will cost £$1$. They will receive £$0.5$ for every coin showing Heads. What is the expected value and the variance of the random variable $Y := 0.5X-1$?
 
