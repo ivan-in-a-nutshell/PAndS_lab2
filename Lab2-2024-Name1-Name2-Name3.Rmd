@@ -20,6 +20,14 @@ output:
 -   The **team id number** referred to in tasks is the **two-digit** ordinal number of your team on the list. Include the line **set.seed(team id number)** at the beginning of your code to make your calculations reproducible. Also observe that the answers **do** depend on this number!\
 -   Take into account that not complying with these instructions may result in point deduction regardless of whether or not your implementation is correct.
 
+Work breakdown:
+
+-   Roman Leshchuk - task 1, task 4.1;
+
+-   Ivan Zarytskyi - task 3, task 4.2;
+
+-   Andrii Kryvyi - task 2, general conclusions.
+
 ------------------------------------------------------------------------
 
 ### Task 1
@@ -253,6 +261,7 @@ $$ Atomic mass of `Cesium-137` is $M=136.907089$.
 
 ```{r}
 teamId <- 23
+set.seed(teamId)
 T <- 30.1 * 60 * 60 * 24 * 365 # Half-life period
 m <- teamId * 10^-6 # Mass of the sample
 M <- 136.907089 # For Cesium-137
@@ -822,4 +831,4 @@ The negative expected value E[Y]=−0.25 means that this game is unfavorable for
 
 ### General summary and conclusions
 
-Summarize here what you've done, whether you solved the tasks, what difficulties you had etc.
+We have worked on some simulations of random variables and connected empirical results with theoretical. We have applied the CLT, used Markov's inequality and Chernoff bounds. The hardest part was that some mathematical equations were not solvable algebraically, which required numerical approach. In general, we conclude that simulations align with the results from theoretical prospective.
