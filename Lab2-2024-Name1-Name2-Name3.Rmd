@@ -640,7 +640,13 @@ S_{100} \sim \Gamma(100, \nu) \\ \mu_S = E(S_{100}) = \frac{100}{\nu} \\ \sigma_
 $$
 
 $$
-\text{Markov: Does not really make sense, as we need approximatioon for left tail, and not right tail} \\ P(S_{100} > 1) \le \frac{100}{\nu}>1
+\text{Markov: For better calculations lets introduce Y: } \\
+Y = \#\text{clicks in 1 minute} \Rightarrow \text{We want: } P(Y \le 100) \ge 0.95 \\
+\text{To use Markov's equations let's use the complement} \\
+1 - P(Y > 100) \ge 0.95 \Rightarrow P(Y > 100) \le 0.05 \Rightarrow P(Y \ge 101) \le 0.05 \\ 
+P(Y \ge 101) \le \frac{N\nu1}{101} \Rightarrow \frac{N\nu1}{101} \le 0.05 \\
+N \le \frac{0.05 * 33}{101} \Rightarrow N \le 0.01 \\
+\text{Markov says: } N_{max}=0 \\
 $$
 
 $$
