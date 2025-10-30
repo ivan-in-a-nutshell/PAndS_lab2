@@ -1,6 +1,6 @@
 ---
-title: 'P&S-2022: Lab assignment 2'
-author: "Name1, Name2, Name3"
+title: 'P&S-2025: Lab assignment 2'
+author: "Roman Leshchuk, Ivan Zarytskyi, Andrii Kryvyi"
 output:
   html_document:
     df_print: paged
