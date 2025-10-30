@@ -1888,9 +1888,15 @@ cat(&quot;Estimate of this probability:&quot;, estimate_p, &quot;\n&quot;)</code
 <p>According to the law of large numbers, estimated probability <span class="math inline">\(\hat{p}\)</span> converges to theoretical
 probability <span class="math inline">\(p^*\)</span> when N is large
 enough.</p>
-<p>Now lets calculate standard error (variance of Bernoulli r.v. with
-parameter <span class="math inline">\(p\)</span> is <span class="math inline">\(p(1-p)\)</span>, standard error is square root of
-variance divided by square root of N):</p>
+<p>Now, according to CLT, sample mean of N i.i.d. Bernoulli r.v. (with
+known mean and variance, denote their sample mean as <span class="math inline">\(Y\)</span>) converges to <span class="math inline">\(N(\mu, \sigma^2)\)</span>. And we can compute
+confidence interval bounds from formula (<span class="math inline">\(Y\)</span> must be normalized firstly): <span class="math inline">\(P(z_v \le \frac{YN - \mu N}{\sigma \sqrt N}  \le
+z_v) = 0.95\)</span>, or <span class="math inline">\((\mu - z_v \cdot SE
+\le Y \le \mu + z_v \cdot SE) = 0.95\)</span>. We are discarding half of
+<span class="math inline">\(0.05\)</span> from both tails of
+distribution, so <span class="math inline">\(z_v\)</span> is value of
+z-function with argument <span class="math inline">\(1 -
+\frac{0.05}{2}\)</span>:</p>
 <pre class="r"><code>estimate_se &lt;- sqrt(estimate_p * (1 - estimate_p) / N)
 cat(sprintf(&quot;Estimate standard error = %.6f\n&quot;, estimate_se))</code></pre>
 <pre><code>## Estimate standard error = 0.000500</code></pre>

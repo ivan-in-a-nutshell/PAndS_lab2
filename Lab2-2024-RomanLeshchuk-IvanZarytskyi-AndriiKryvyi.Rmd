@@ -176,7 +176,7 @@ cat("Estimate of this probability:", estimate_p, "\n")
 
 According to the law of large numbers, estimated probability $\hat{p}$ converges to theoretical probability $p^*$ when N is large enough.
 
-Now lets calculate standard error (variance of Bernoulli r.v. with parameter $p$ is $p(1-p)$, standard error is square root of variance divided by square root of N):
+Now, according to CLT, sample mean of N i.i.d. Bernoulli r.v. (with known mean and variance, denote their sample mean as $Y$) converges to $N(\mu, \sigma^2)$. And we can compute confidence interval bounds from formula ($Y$ must be normalized firstly): $P(z_v \le \frac{YN - \mu N}{\sigma \sqrt N}  \le z_v) = 0.95$, or $(\mu - z_v \cdot SE \le Y \le \mu + z_v \cdot SE) = 0.95$. We are discarding half of $0.05$ from both tails of distribution, so $z_v$ is value of z-function with argument $1 - \frac{0.05}{2}$:
 
 ```{r}
 estimate_se <- sqrt(estimate_p * (1 - estimate_p) / N)
